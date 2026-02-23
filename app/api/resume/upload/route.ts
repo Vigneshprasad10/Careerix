@@ -28,6 +28,15 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     return fullText.trim()
 }
 
+export const config = {
+    api: {
+        bodyParser: false, // Disabling bodyParser to handle multipart manually if needed, but NextRequest.formData() should work.
+        // However, in App Router, config is different. Actually, we use 'maxDuration' or similar, 
+        // but for size, Next.js App Router uses standard web request limits.
+        // For larger bodies, we might need to adjust next.config.ts if it's a global limit.
+    },
+}
+
 export async function POST(request: NextRequest) {
     try {
         const { userId } = await auth()
@@ -35,7 +44,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const formData = await request.formData()
+        let formData;
+        try {
+            formData = await request.formData()
+        } catch (formDataError) {
+            console.error('Error parsing FormData:', formDataError)
+            return NextResponse.json({
+                error: 'Could not parse upload data. Ensure you are using a stable connection.',
+                details: formDataError instanceof Error ? formDataError.message : 'Unknown error'
+            }, { status: 400 })
+        }
+
         const file = formData.get('file') as File
         if (!file) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 })

@@ -47,15 +47,34 @@ export default function ResumePage() {
         if (file.type !== 'application/pdf') { toast.error('Please upload a PDF file'); return }
         if (file.size > 10 * 1024 * 1024) { toast.error('File must be under 10MB'); return }
         setUploading(true)
+
+        // Add a timeout for mobile connections (60 seconds)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 60000)
+
         try {
             const fd = new FormData(); fd.append('file', file)
-            const res = await fetch('/api/resume/upload', { method: 'POST', body: fd })
+            const res = await fetch('/api/resume/upload', {
+                method: 'POST',
+                body: fd,
+                signal: controller.signal
+            })
+
+            clearTimeout(timeoutId)
+
             const data = await res.json()
-            if (!res.ok) throw new Error(data.error)
+            if (!res.ok) throw new Error(data.error || 'Upload failed')
             setResumes(prev => [data.resume, ...prev])
             toast.success('Resume uploaded & parsed!')
-        } catch (e) { toast.error((e as Error).message || 'Upload failed') }
-        finally { setUploading(false) }
+        } catch (e) {
+            const error = e as Error
+            if (error.name === 'AbortError') {
+                toast.error('Upload timed out. Please check your internet connection.')
+            } else {
+                toast.error(error.message || 'Upload failed. Try a smaller file or different browser.')
+            }
+        }
+        finally { setUploading(false); clearTimeout(timeoutId) }
     }
 
     const deleteResume = async (id: string) => {
@@ -75,8 +94,24 @@ export default function ResumePage() {
         if (file) uploadFile(file)
     }
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) uploadFile(file)
+        // Reset the input so the same file can be uploaded again if needed
+        e.target.value = ''
+    }
+
     return (
         <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-up">
+            {/* Hidden Input for Mobile Compatibility */}
+            <input
+                id="resume-upload-input"
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleFileSelect}
+            />
+
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white mb-2">Resume Manager</h1>
@@ -93,7 +128,7 @@ export default function ResumePage() {
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
-                onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.pdf'; i.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) uploadFile(f) }; i.click() }}
+                onClick={() => document.getElementById('resume-upload-input')?.click()}
             >
                 {/* Animated ring */}
                 {dragOver && (
