@@ -25,18 +25,9 @@ function NavContent({ onClose }: { onClose?: () => void }) {
     return (
         <div className="flex flex-col h-full">
             {/* Logo */}
-            <div className="flex items-center gap-3 px-5 py-5">
-                <div className="relative w-9 h-9 shrink-0">
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 animate-float" />
-                    <div className="relative w-full h-full rounded-xl bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-white" />
-                    </div>
-                </div>
-                <div>
-                    <p className="text-sm font-bold text-white tracking-tight">Careerix</p>
-                    <p className="text-[10px] text-white/40 tracking-widest uppercase">Career Intelligence</p>
-                </div>
-            </div>
+            <Link href="/" onClick={onClose} className="flex items-center gap-3">
+                <img src="/careerix-logo.svg" alt="Careerix" className="h-8" />
+            </Link>
 
             {/* Divider */}
             <div className="mx-4 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-3" />
@@ -122,12 +113,9 @@ export default function Sidebar() {
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}
             >
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="font-bold text-white text-sm">Careerix</span>
-                </div>
+                <Link href="/" className="flex items-center gap-2">
+                    <img src="/careerix-logo.svg" alt="Careerix" className="h-7" />
+                </Link>
                 <button
                     onClick={() => setMobileOpen(!mobileOpen)}
                     className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white"

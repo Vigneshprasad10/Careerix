@@ -9,6 +9,10 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Careerix - Your AI-Powered Career Intelligence Platform',
   description: 'Analyze resumes, match jobs, generate cover letters, prep for interviews, and track your job applications — all powered by AI.',
+  icons: {
+    icon: '/careerix-icon.svg',
+    apple: '/careerix-icon.svg',
+  },
 }
 
 export default function RootLayout({
