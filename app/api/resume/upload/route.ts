@@ -28,27 +28,26 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     return fullText.trim()
 }
 
-export const config = {
-    api: {
-        bodyParser: false, // Disabling bodyParser to handle multipart manually if needed, but NextRequest.formData() should work.
-        // However, in App Router, config is different. Actually, we use 'maxDuration' or similar, 
-        // but for size, Next.js App Router uses standard web request limits.
-        // For larger bodies, we might need to adjust next.config.ts if it's a global limit.
-    },
-}
+// Export configuration for App Router
+export const maxDuration = 60; // 60 seconds (for Pro/Team plans, Hobby is 10s but this helps on some platforms)
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+    console.log('[Upload API] Request received');
     try {
         const { userId } = await auth()
         if (!userId) {
+            console.error('[Upload API] Unauthorized attempt');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        console.log('[Upload API] Auth successful for:', userId);
 
         let formData;
         try {
             formData = await request.formData()
+            console.log('[Upload API] FormData parsed successfully');
         } catch (formDataError) {
-            console.error('Error parsing FormData:', formDataError)
+            console.error('[Upload API] Error parsing FormData:', formDataError)
             return NextResponse.json({
                 error: 'Could not parse upload data. Ensure you are using a stable connection.',
                 details: formDataError instanceof Error ? formDataError.message : 'Unknown error'
@@ -57,8 +56,10 @@ export async function POST(request: NextRequest) {
 
         const file = formData.get('file') as File
         if (!file) {
+            console.error('[Upload API] No file in FormData');
             return NextResponse.json({ error: 'No file provided' }, { status: 400 })
         }
+        console.log('[Upload API] File received:', file.name, file.size, file.type);
 
         if (file.type !== 'application/pdf') {
             return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400 })
@@ -68,16 +69,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File size must be under 10MB' }, { status: 400 })
         }
 
+        console.log('[Upload API] Reading arrayBuffer...');
         const bytes = await file.arrayBuffer()
         const buffer = Buffer.from(bytes)
+        console.log('[Upload API] ArrayBuffer read, buffer length:', buffer.length);
 
         // Extract text from PDF using pdfjs-dist
         let parsedText = ''
         try {
+            console.log('[Upload API] Starting PDF extraction...');
             parsedText = await extractTextFromPDF(buffer)
-            console.log('PDF extracted via pdfjs-dist, length:', parsedText.length)
+            console.log('[Upload API] PDF extracted via pdfjs-dist, length:', parsedText.length)
         } catch (e) {
-            console.error('PDF extraction failed:', e)
+            console.error('[Upload API] PDF extraction failed:', e)
             parsedText = '[Could not extract text from this PDF]'
         }
 
@@ -86,6 +90,7 @@ export async function POST(request: NextRequest) {
         const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
         const storagePath = `${userId}/${timestamp}_${safeName}`
 
+        console.log('[Upload API] Uploading to Supabase:', storagePath);
         const { error: storageError } = await supabaseAdmin.storage
             .from('resumes')
             .upload(storagePath, buffer, {
@@ -94,10 +99,13 @@ export async function POST(request: NextRequest) {
             })
 
         if (storageError) {
-            console.error('Storage error:', storageError)
+            console.error('[Upload API] Storage error:', storageError)
+        } else {
+            console.log('[Upload API] Supabase storage upload success');
         }
 
         // Save record to database
+        console.log('[Upload API] Saving DB record...');
         const { data: resume, error: dbError } = await supabaseAdmin
             .from('resumes')
             .insert({
@@ -110,14 +118,18 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (dbError) {
-            console.error('DB error:', dbError)
+            console.error('[Upload API] DB error:', dbError)
             return NextResponse.json({ error: 'Failed to save resume record' }, { status: 500 })
         }
 
+        console.log('[Upload API] Success!');
         return NextResponse.json({ success: true, resume })
     } catch (error) {
-        console.error('Upload error:', error)
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+        console.error('[Upload API] Global catch error:', error)
+        return NextResponse.json({
+            error: 'Internal server error',
+            details: error instanceof Error ? error.message : String(error)
+        }, { status: 500 })
     }
 }
 

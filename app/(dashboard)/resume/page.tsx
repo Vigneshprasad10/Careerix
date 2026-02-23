@@ -53,7 +53,15 @@ export default function ResumePage() {
         const timeoutId = setTimeout(() => controller.abort(), 60000)
 
         try {
-            const fd = new FormData(); fd.append('file', file)
+            // CRITICAL FOR MOBILE: Pre-read the file as an ArrayBuffer.
+            // On mobile, the browser may lose access to the file handle if the app goes to background
+            // or if the upload is slow. Converting to a Blob/Buffer in memory fixes this.
+            const arrayBuffer = await file.arrayBuffer()
+            const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
+
+            const fd = new FormData()
+            fd.append('file', blob, file.name)
+
             const res = await fetch('/api/resume/upload', {
                 method: 'POST',
                 body: fd,
@@ -63,11 +71,15 @@ export default function ResumePage() {
             clearTimeout(timeoutId)
 
             const data = await res.json()
-            if (!res.ok) throw new Error(data.error || 'Upload failed')
+            if (!res.ok) {
+                console.error('Upload failure details:', data)
+                throw new Error(data.error || data.details || 'Upload failed')
+            }
             setResumes(prev => [data.resume, ...prev])
             toast.success('Resume uploaded & parsed!')
         } catch (e) {
             const error = e as Error
+            console.error('Upload catch:', error)
             if (error.name === 'AbortError') {
                 toast.error('Upload timed out. Please check your internet connection.')
             } else {
