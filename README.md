@@ -15,9 +15,8 @@
 
 <br/>
 
-![Careerix Dashboard](https://github.com/Vigneshprasad10/Careerix/raw/main/public/preview.png)
 
-> ⚠️ *Replace the image above with an actual screenshot of your app*
+
 
 </div>
 
